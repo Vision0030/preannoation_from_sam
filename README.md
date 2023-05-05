@@ -1,0 +1,2 @@
+# get_get_ann_from_sam
+用segment anything做自己任务数据的半自动标注
