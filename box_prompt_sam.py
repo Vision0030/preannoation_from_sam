@@ -1,5 +1,4 @@
 # codding=utf-8
-# box形式的prompt不方便给mask的cls信息, 
 import os
 import os.path as osp 
 import numpy as np 
@@ -72,5 +71,4 @@ if __name__ == "__main__":
             cv2.rectangle(image, (xml_box[0],xml_box[1]), (xml_box[2],xml_box[3]), (0,255,0), 2)
         vis = np.concatenate([res, image], axis=0)
         cv2.imwrite(osp.join(out_vis_dir, osp.basename(xml_path)[:-3]+'jpg'), vis)
-        
         

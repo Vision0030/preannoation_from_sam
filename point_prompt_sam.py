@@ -1,5 +1,5 @@
 # codding=utf-8
-# point prompt + label 信息. 甚至后面可以给自己数据train的model predict作为mask_input
+# point prompt + label 信息. 后面可以给自己数据train的model predict作为mask_input
 import os
 import os.path as osp 
 import numpy as np 
@@ -8,6 +8,10 @@ from read_xml import getimages
 from sam_model import point_prompt_mask
 import random
 
+
+# 在box内随机点一些点, 这样不是很准.. 会出现: 一些box内的点其实根本没在object上
+# 所以这个point形式的prompt, 还是得后续: 先train个还行的同分布数据集model, 再predict得到mask和cls
+# 再用sam来优化~ 
 def point_pointlabel(ann, jiachen_cls_index, first_point_rate=0.5, h_half=500, w_half=500):
     box = [int(a) for a in ann[:4]]
     offset_rate = random.random()*first_point_rate
@@ -28,8 +32,6 @@ def point_pointlabel(ann, jiachen_cls_index, first_point_rate=0.5, h_half=500, w
             point_labels.append(label_index)
 
     return points, point_labels
-
-
 
 
 
