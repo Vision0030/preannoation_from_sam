@@ -7,6 +7,12 @@ import cv2
 from read_xml import getimages
 from sam_model import box_prompt_mask
 
+# from imantics import Polygons, Mask
+# ...
+# polygons = Mask(sam_mask).polygons()
+# points = polygons.points[0]  # save points to COCO json format, which can be read by CVAT.
+
+
 def give_cls_index(res_label_map, jiachen_cls_index, labels, box_list):
     sam_label = np.zeros_like(res_label_map)
     for ind, box in enumerate(box_list):
