@@ -115,6 +115,7 @@ for epoch in range(num_epochs):
           boxes=box_torch,
           masks=None,
       )
+    # 只mask_decoder部分是need grad, 可train的~
     low_res_masks, iou_predictions = sam_model.mask_decoder(
       image_embeddings=image_embedding,
       image_pe=sam_model.prompt_encoder.get_dense_pe(),
