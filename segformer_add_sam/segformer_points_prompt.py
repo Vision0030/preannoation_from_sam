@@ -94,14 +94,14 @@ def get_points_prompt(im_name, checkpoint, config, device):
     return segformer_res_mask
 
 
-def segformer2prompt(segformer_mask, segformer2haitian, point_num=None, mask_area_thres=None):
+def segformer2prompt(segformer_mask, segformer2haitian, point_num=None, mask_area_thres=None, find_point_times=None):
     
     instance_points = []
     instance_point_label = []
     if np.sum(segformer_mask) == 0:
         return np.array(instance_points), np.array(instance_point_label)
 
-    need_labinds = [int(a) for a in segformer2haitian]  # 2 4 便便, 线, 俩类
+    need_labinds = [int(a) for a in segformer2haitian]  # 2 4 便便, 线, 
     for need_ind in need_labinds:
         haitian_lab = segformer2haitian[str(need_ind)]
         if np.sum(segformer_mask==need_ind) > 0:
@@ -113,8 +113,10 @@ def segformer2prompt(segformer_mask, segformer2haitian, point_num=None, mask_are
                 # x_coords, y_coords = np.mean(point_coords[0]), np.mean(point_coords[1])  # 这样子比较粗暴..还是可能出现点没有命中在object上
                 x1,x2, y1,y2 = int(min(point_coords[0])), int(max(point_coords[0])), int(min(point_coords[1])), int(max(point_coords[1]))
                 count = 0
-                while count < point_num:
+                fors = 0  # 线类别很难点中, 强行找俩可能一直卡住.. 最大搜find_point_times次吧还是找不到点就算了...
+                while (count < point_num or fors < find_point_times):
                     x, y = random.randint(x1,x2), random.randint(y1,y2)
+                    fors += 1
                     # point点在object上且此连通域面积大于阈值 
                     if labels[x,y] != 0 and stats[bin_id][-1] > mask_area_thres:
                         count += 1
