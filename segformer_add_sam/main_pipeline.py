@@ -1,11 +1,12 @@
 # coding=utf-8
 '''
 segformer出points prompt
-box points box+points三种形式prompt
+ann-box; segformer-points; ann-box+segformer-points; segformer-box 4种形式prompt
 
-box最好, 
-box+point反而有些漏检
-point检出一般...
+结论: 
+    ann-box最好, 
+    ann-box+segformer-points反而有些漏检  不太好的points prompt影响好的ann-box prompt
+    segformer-box形式比segformer-points形式好!
 
 '''
 import os
@@ -18,7 +19,7 @@ from read_xml import getimages
 from segment_anything import sam_model_registry
 from sam_model import box_only_prompt, points_only_prompt, points_box_prompt 
 from bk_cvat_upload_ann.samres2citycapse import generate_gtFine, check_instance_id
-from segformer_points_prompt import get_points_prompt, segformer2prompt 
+from segformer_points_prompt import get_points_prompt, segformer2pointsprompt, segformer2boxsprompt
 
 
 def give_cls_index(res_label_map, jiachen_cls_index, labels, box_list):
@@ -72,21 +73,27 @@ def rewrite_img_2_citycapse(xml, img_save_path):
     return img_save_name
 
 
-def run_prompt_sam(sam, image, box_list, img_save_name):
+def run_prompt_sam(sam, image, box_array, img_save_name):
 
     if args.prompt_format == 'box-only':
-        res_label_map = box_only_prompt(sam, image, box_list, args.device_sam, args.inference_size)
+        res_label_map = box_only_prompt(sam, image, box_array, args.device_sam, args.inference_size)
     else:
         segformer_mask = get_points_prompt(img_save_name, args.segformer_checkpoint, args.segformer_config, args.device_segformer)   
         # 6. 用segformer2haitian赋值points_label 每个instance出2个点
-        points, point_labels = segformer2prompt(segformer_mask, args.segformer2haitian, point_num=args.point_num, mask_area_thres=args.mask_area_thres)
-        if args.prompt_format == 'points-only' and points.shape[0]:
+        points, point_labels = segformer2pointsprompt(segformer_mask, args.segformer2haitian, point_num=args.point_num, mask_area_thres=args.mask_area_thres)
+        if args.prompt_format == 'segformer_points' and points.shape[0]:
             res_label_map = points_only_prompt(sam, image, points, point_labels, args.device_sam, args.inference_size)
         if args.prompt_format == 'box_and_points' and points.shape[0]:
-            res_label_map = points_box_prompt(sam, image, points, point_labels, box_list, args.device_sam, args.inference_size)
+            res_label_map = points_box_prompt(sam, image, points, point_labels, box_array, args.device_sam, args.inference_size)
         if args.prompt_format == 'box_and_points' and not points.shape[0]:
-            res_label_map = box_only_prompt(sam, image, box_list, args.device_sam, args.inference_size)
-        if args.prompt_format == 'points-only' and not points.shape[0]:
+            res_label_map = box_only_prompt(sam, image, box_array, args.device_sam, args.inference_size)
+        if args.prompt_format == 'segformer_box':
+            box_array = segformer2boxsprompt(segformer_mask, args.segformer2haitian, mask_area_thres=args.mask_area_thres)
+            if box_array.shape[0]:
+                res_label_map = box_only_prompt(sam, image, box_array, args.device_sam, args.inference_size)
+            else:
+                res_label_map = np.zeros_like(image[:,:,0]).astype(np.uint8)
+        if args.prompt_format == 'segformer_points' and not points.shape[0]:
             res_label_map = np.zeros_like(image[:,:,0]).astype(np.uint8)
 
     return res_label_map
@@ -102,7 +109,7 @@ if __name__ == "__main__":
     parser.add_argument('--device_sam', type=str, default='cuda:0')
     parser.add_argument('--device_segformer', type=str, default='cuda:2')  # segformer+sam一起可能显存不够,so分开run
     parser.add_argument('--inference_size', type=int, default=600)
-    parser.add_argument('--prompt_format', type=str, default='points-only')  # 'box-only', 'points-only', 'box_and_points'
+    parser.add_argument('--prompt_format', type=str, default='segformer_box')  # 'box-only', 'segformer_points', 'box_and_points', 'segformer_box'
     parser.add_argument('--mask_area_thres', type=int, default=20)  # 小于mask_area_thres面积的滤掉
     parser.add_argument('--point_num', type=int, default=5)  # 每个instance出point_num个promp point
     parser.add_argument('--data_dir', type=str, default='/mnt/data/jiachen/pre_ann_data/test')
@@ -139,7 +146,8 @@ if __name__ == "__main__":
         print('processing {} ~~~'.format(xml_path[:-3]+'bmp'))
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         # 5. prompt run sam ~~~
-        res_label_map = run_prompt_sam(sam, image, box_list, img_save_name)
+        box_array = np.array(box_list)
+        res_label_map = run_prompt_sam(sam, image, box_array, img_save_name)
         sam_label = give_cls_index(res_label_map, jiachen_cls_index, labels, box_list)
         color_res = vis_label_map(sam_label, col_map)
         # 6. 生成instance.png, 过滤一些小area mask, 对应把label.png, colormap都refine下~

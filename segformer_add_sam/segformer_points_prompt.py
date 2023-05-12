@@ -9,12 +9,9 @@ import numpy as np
 import random
 import cv2 
 
-
 class LoadImage:
     """A simple pipeline to load image."""
-
     def __call__(self, results):
-
         if isinstance(results['img'], str):
             results['filename'] = results['img']
             results['ori_filename'] = results['img']
@@ -26,24 +23,6 @@ class LoadImage:
         results['img_shape'] = img.shape
         results['ori_shape'] = img.shape
         return results
-
-
-
-def label_map2vismap(res_):
-    color_map = np.zeros_like(cv2.merge([res_, res_, res_]))
-    colormap = [[0,0,0], [0, 255, 0], [0, 255, 255], [200, 100, 200], [0, 0, 255], [255,0,0]] 
-    if np.sum(res_) > 0:   
-        color_map = np.zeros_like(org)
-        for ind, col in enumerate(colormap):
-            if ind == 0:
-                continue
-            color_map[:,:,0][res_==ind] = col[0]
-            color_map[:,:,1][res_==ind] = col[1]
-            color_map[:,:,2][res_==ind] = col[2]
-
-    return color_map
-
-
 def init_segmentor(config, checkpoint=None, device='cuda:0'):
 
     if isinstance(config, str):
@@ -62,10 +41,7 @@ def init_segmentor(config, checkpoint=None, device='cuda:0'):
     model.to(device)
     model.eval()
     return model
-
-
 def inference_segmentor(model, img):
-
     cfg = model.cfg
     device = next(model.parameters()).device  # model device
     # build the data pipeline
@@ -80,12 +56,10 @@ def inference_segmentor(model, img):
         data = scatter(data, [device])[0]
     else:
         data['img_metas'] = [i.data[0] for i in data['img_metas']]
-
     # forward the model
     with torch.no_grad():
         result = model(return_loss=False, rescale=True, **data)
     return result
-
 
 def get_points_prompt(im_name, checkpoint, config, device):
     model = init_segmentor(config, checkpoint, device=device)
@@ -93,9 +67,7 @@ def get_points_prompt(im_name, checkpoint, config, device):
 
     return segformer_res_mask
 
-
-def segformer2prompt(segformer_mask, segformer2haitian, point_num=None, mask_area_thres=None):
-
+def segformer2pointsprompt(segformer_mask, segformer2haitian, point_num=None, mask_area_thres=None):
     instance_points = []
     instance_point_label = []
     if np.sum(segformer_mask) == 0:
@@ -120,8 +92,29 @@ def segformer2prompt(segformer_mask, segformer2haitian, point_num=None, mask_are
     return points, pointslabels
 
 
+def segformer2boxsprompt(segformer_mask, segformer2haitian, mask_area_thres=None):
+    # Segformet inference一遍待标注数据, mask结果找连通域然后给box
+    box_list = []
+    box_label = []
+    if np.sum(segformer_mask) == 0:
+        return np.array(box_list) 
+    need_labinds = [int(a) for a in segformer2haitian]  # 2 4 便便, 线, 俩类
+    for need_ind in need_labinds:
+        haitian_lab = segformer2haitian[str(need_ind)]
+        if np.sum(segformer_mask==need_ind) > 0:
+            tmp = np.zeros_like(segformer_mask).astype(np.uint8)
+            tmp[segformer_mask==need_ind] = 1
+            num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(tmp, connectivity=8)
+            for bin_id in range(1, num_labels):
+                x,y,h,w,s = stats[bin_id][:5]
+                if s > mask_area_thres:  # 太细碎的连通域不要..
+                    box_list.append([x,y,x+h,y+w])
+                    box_label.append(haitian_lab) 
+    box_arry = np.array(box_list)
+    box_label = np.array(box_label)  # 这个暂时没return出去, 
+
+    return box_arry 
+
 
 if __name__ == '__main__':
-
-    # get_points_prompt(im_name, checkpoint, config, device)
     pass 
