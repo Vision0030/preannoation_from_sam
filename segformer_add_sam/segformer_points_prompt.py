@@ -95,9 +95,13 @@ def get_points_prompt(im_name, checkpoint, config, device):
 
 
 def segformer2prompt(segformer_mask, segformer2haitian, point_num=None, mask_area_thres=None):
-    need_labinds = [int(a) for a in segformer2haitian]  # 2 4 便便, 线, 俩类
+    
     instance_points = []
     instance_point_label = []
+    if np.sum(segformer_mask) == 0:
+        return np.array(instance_points), np.array(instance_point_label)
+
+    need_labinds = [int(a) for a in segformer2haitian]  # 2 4 便便, 线, 俩类
     for need_ind in need_labinds:
         haitian_lab = segformer2haitian[str(need_ind)]
         if np.sum(segformer_mask==need_ind) > 0:
