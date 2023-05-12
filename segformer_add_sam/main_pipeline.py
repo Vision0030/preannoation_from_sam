@@ -1,6 +1,6 @@
 # coding=utf-8
 '''
-segformer出points prompt
+segformer出prompt
 ann-box; segformer-points; ann-box+segformer-points; segformer-box 4种形式prompt
 
 结论: 
@@ -19,7 +19,7 @@ from read_xml import getimages
 from segment_anything import sam_model_registry
 from sam_model import box_only_prompt, points_only_prompt, points_box_prompt 
 from bk_cvat_upload_ann.samres2citycapse import generate_gtFine, check_instance_id
-from segformer_points_prompt import get_points_prompt, segformer2pointsprompt, segformer2boxsprompt
+from segformer_points_box_prompt import get_segformer_mask, segformer2pointsprompt, segformer2boxsprompt
 
 
 def give_cls_index(res_label_map, jiachen_cls_index, labels, box_list):
@@ -78,7 +78,7 @@ def run_prompt_sam(sam, image, box_array, img_save_name):
     if args.prompt_format == 'box-only':
         res_label_map = box_only_prompt(sam, image, box_array, args.device_sam, args.inference_size)
     else:
-        segformer_mask = get_points_prompt(img_save_name, args.segformer_checkpoint, args.segformer_config, args.device_segformer)   
+        segformer_mask = get_segformer_mask(img_save_name, args.segformer_checkpoint, args.segformer_config, args.device_segformer)   
         # 6. 用segformer2haitian赋值points_label 每个instance出2个点
         points, point_labels = segformer2pointsprompt(segformer_mask, args.segformer2haitian, point_num=args.point_num, mask_area_thres=args.mask_area_thres)
         if args.prompt_format == 'segformer_points' and points.shape[0]:

@@ -61,18 +61,19 @@ def inference_segmentor(model, img):
         result = model(return_loss=False, rescale=True, **data)
     return result
 
-def get_points_prompt(im_name, checkpoint, config, device):
+def get_segformer_mask(im_name, checkpoint, config, device):
     model = init_segmentor(config, checkpoint, device=device)
     segformer_res_mask = inference_segmentor(model, im_name)[0]
 
     return segformer_res_mask
 
 def segformer2pointsprompt(segformer_mask, segformer2haitian, point_num=None, mask_area_thres=None):
+
     instance_points = []
     instance_point_label = []
     if np.sum(segformer_mask) == 0:
         return np.array(instance_points), np.array(instance_point_label)
-    need_labinds = [int(a) for a in segformer2haitian]  # 2 4 便便, 线, 俩类
+    need_labinds = [int(a) for a in segformer2haitian]   
     for need_ind in need_labinds:
         haitian_lab = segformer2haitian[str(need_ind)]
         if np.sum(segformer_mask==need_ind) > 0:
@@ -97,7 +98,7 @@ def segformer2boxsprompt(segformer_mask, segformer2haitian, mask_area_thres=None
     box_list = []
     box_label = []
     if np.sum(segformer_mask) == 0:
-        return np.array(box_list) 
+        return np.array(box_list), box_label
     need_labinds = [int(a) for a in segformer2haitian]  # 2 4 便便, 线, 俩类
     for need_ind in need_labinds:
         haitian_lab = segformer2haitian[str(need_ind)]
@@ -111,9 +112,8 @@ def segformer2boxsprompt(segformer_mask, segformer2haitian, mask_area_thres=None
                     box_list.append([x,y,x+h,y+w])
                     box_label.append(haitian_lab) 
     box_arry = np.array(box_list)
-    box_label = np.array(box_label)  # 这个暂时没return出去, 
 
-    return box_arry 
+    return box_arry, box_label
 
 
 if __name__ == '__main__':
