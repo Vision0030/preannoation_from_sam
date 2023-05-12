@@ -3,6 +3,10 @@
 segformer出points prompt
 box points box+points三种形式prompt
 
+box最好, 
+box+point反而有些漏检
+point检出一般...
+
 '''
 import os
 import os.path as osp 
@@ -13,7 +17,7 @@ import cv2
 from read_xml import getimages
 from segment_anything import sam_model_registry
 from sam_model import box_only_prompt, points_only_prompt, points_box_prompt 
-from samres2citycapse import generate_gtFine, check_instance_id
+from bk_cvat_upload_ann.samres2citycapse import generate_gtFine, check_instance_id
 from segformer_points_prompt import get_points_prompt, segformer2prompt 
 
 
@@ -98,9 +102,9 @@ if __name__ == "__main__":
     parser.add_argument('--device_sam', type=str, default='cuda:0')
     parser.add_argument('--device_segformer', type=str, default='cuda:2')  # segformer+sam一起可能显存不够,so分开run
     parser.add_argument('--inference_size', type=int, default=600)
-    parser.add_argument('--prompt_format', type=str, default='box_and_points')  # 'box-only', 'points-only', 'box_and_points'
+    parser.add_argument('--prompt_format', type=str, default='points-only')  # 'box-only', 'points-only', 'box_and_points'
     parser.add_argument('--mask_area_thres', type=int, default=20)  # 小于mask_area_thres面积的滤掉
-    parser.add_argument('--point_num', type=int, default=2)  # 每个instance出point_num个promp point
+    parser.add_argument('--point_num', type=int, default=5)  # 每个instance出point_num个promp point
     parser.add_argument('--data_dir', type=str, default='/mnt/data/jiachen/pre_ann_data/test')
     parser.add_argument('--out_dir', type=str, default='/mnt/data/jiachen/sam_preann_haitian/gtFine/default')
     parser.add_argument('--img_save_path', type=str, default='/mnt/data/jiachen/sam_preann_haitian/imgsFine/leftImg8bit/default')
@@ -132,6 +136,7 @@ if __name__ == "__main__":
             labels.append(ann[4])
         # 4. get sam mask
         image = cv2.imread(xml_path[:-3]+'bmp', cv2.IMREAD_UNCHANGED)
+        print('processing {} ~~~'.format(xml_path[:-3]+'bmp'))
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
         # 5. prompt run sam ~~~
         res_label_map = run_prompt_sam(sam, image, box_list, img_save_name)
