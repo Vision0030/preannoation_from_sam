@@ -75,7 +75,7 @@ def run_prompt_sam(sam, image, box_list, img_save_name):
     else:
         segformer_mask = get_points_prompt(img_save_name, args.segformer_checkpoint, args.segformer_config, args.device_segformer)   
         # 6. 用segformer2haitian赋值points_label 每个instance出2个点
-        points, point_labels = segformer2prompt(segformer_mask, args.segformer2haitian, point_num=args.point_num, mask_area_thres=args.mask_area_thres, find_point_times=args.find_point_times)
+        points, point_labels = segformer2prompt(segformer_mask, args.segformer2haitian, point_num=args.point_num, mask_area_thres=args.mask_area_thres)
         if args.prompt_format == 'points-only' and points.shape[0]:
             res_label_map = points_only_prompt(sam, image, points, point_labels, args.device_sam, args.inference_size)
         if args.prompt_format == 'box_and_points' and points.shape[0]:
@@ -101,7 +101,6 @@ if __name__ == "__main__":
     parser.add_argument('--prompt_format', type=str, default='box_and_points')  # 'box-only', 'points-only', 'box_and_points'
     parser.add_argument('--mask_area_thres', type=int, default=20)  # 小于mask_area_thres面积的滤掉
     parser.add_argument('--point_num', type=int, default=2)  # 每个instance出point_num个promp point
-    parser.add_argument('--find_point_times', type=int, default=100)  # 找point prompt1000次, 还是找不到满足的那就算了...
     parser.add_argument('--data_dir', type=str, default='/mnt/data/jiachen/pre_ann_data/test')
     parser.add_argument('--out_dir', type=str, default='/mnt/data/jiachen/sam_preann_haitian/gtFine/default')
     parser.add_argument('--img_save_path', type=str, default='/mnt/data/jiachen/sam_preann_haitian/imgsFine/leftImg8bit/default')
