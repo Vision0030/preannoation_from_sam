@@ -1,4 +1,4 @@
-segformer出points prompt
+segformer出points, box-prompt
 ann-box; segformer-points; ann-box+segformer-points; segformer-box 4种形式prompt
 
 结论: 
