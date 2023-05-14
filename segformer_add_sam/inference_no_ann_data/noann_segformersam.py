@@ -3,6 +3,8 @@
 segformer出 prompt
 segformer-points; segformer-box 2种形式prompt
 
+PerSAM中的涨点神器: refine post process, 也是先出初版结果, 然后对mask找bbox, 作为prompt输给sam的decoder.
+
 '''
 import os
 import os.path as osp 
