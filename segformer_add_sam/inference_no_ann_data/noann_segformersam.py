@@ -2,7 +2,6 @@
 '''
 segformer出 prompt
 segformer-points; segformer-box 2种形式prompt
-noann_segformersam.py
 
 '''
 import os

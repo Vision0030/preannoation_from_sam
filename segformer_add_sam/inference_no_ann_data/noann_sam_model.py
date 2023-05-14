@@ -1,5 +1,4 @@
 # coding=utf-8
-# noann_sam_model.py
 import cv2
 import sys
 import numpy as np 
