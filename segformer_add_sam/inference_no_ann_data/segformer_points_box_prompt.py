@@ -84,10 +84,11 @@ def get_segformer_mask(im_name, checkpoint, config, device):
     return segformer_res_mask
 
 def ner_count(cur_x, cur_y, ner_kernel_size, labels, bin_id, is_pos=True):
+    h, w = labels.shape[:2]
     tmp_count = 0
     for i in range(ner_kernel_size):
         for j in range(ner_kernel_size):
-            ner_x, ner_y = cur_x+i, cur_y+j 
+            ner_x, ner_y = min(cur_x+i, h-1), min(cur_y+j, w-1)
             if is_pos and labels[ner_x, ner_y]==bin_id:
                 tmp_count += 1
             elif not is_pos and labels[ner_x, ner_y]!=bin_id:
@@ -95,11 +96,17 @@ def ner_count(cur_x, cur_y, ner_kernel_size, labels, bin_id, is_pos=True):
     return tmp_count
 
 
-def segformer2pointsprompt(segformer_mask, segformer2haitian, point_num=None, mask_area_thres=None, ner_kernel_size=None):
+def segformer_points_bbox(segformer_mask, segformer2haitian, point_num=None, mask_area_thres=None, ner_kernel_size=None):
+    '''
+    无任何ann, 基于segformer出mask, 找bbox, 找邻域pos,neg points.
+
+    '''
     instance_points = []
     instance_point_label = []
+    box_list = []
+    box_label = []
     if np.sum(segformer_mask) == 0:
-        return np.array(instance_points), np.array(instance_point_label)
+        return np.array(instance_points), np.array(instance_point_label), np.array(box_list), box_label
     need_labinds = [int(a) for a in segformer2haitian]   
     for need_ind in need_labinds:
         haitian_lab = segformer2haitian[str(need_ind)]
@@ -110,6 +117,9 @@ def segformer2pointsprompt(segformer_mask, segformer2haitian, point_num=None, ma
             for bin_id in range(1, num_labels):
                 x,y,h,w,s = stats[bin_id][:5]
                 if s > mask_area_thres:   
+                    # 满足mask_area_thres即可加入box_list
+                    box_list.append([x,y,x+h,y+w])
+                    box_label.append(haitian_lab) 
                     point_coords = np.where(labels==bin_id)
                     for _ in range(point_num):   
                         random_ind = random.randint(0, len(point_coords[0])-1)  # 
@@ -120,7 +130,7 @@ def segformer2pointsprompt(segformer_mask, segformer2haitian, point_num=None, ma
                             instance_points.append([cur_x, cur_y])
                             instance_point_label.append(haitian_lab) 
                     # 开始筛neg点
-                    random_x, random_y = random.randint(y, y+w), random.randint(x,x+h)
+                    random_x, random_y = random.randint(y, y+w-1), random.randint(x,x+h-1)
                     if labels[random_x, random_y]!=bin_id: # 不在mask,so我找到neg点了, 继续看邻域也是neg就好了~
                         tmp_count = ner_count(cur_x, cur_y, ner_kernel_size, labels, bin_id, is_pos=False)
                         if tmp_count == ner_kernel_size*ner_kernel_size:  
@@ -128,7 +138,9 @@ def segformer2pointsprompt(segformer_mask, segformer2haitian, point_num=None, ma
                             instance_point_label.append(0)  # neg点label=0
     points = np.array(instance_points)
     pointslabels = np.array(instance_point_label)
-    return points, pointslabels
+    box_array = np.array(box_list)
+
+    return points, pointslabels, box_array, box_label
 
 def if_inPoly(polygon, Points):
     line = geometry.LineString(polygon)
@@ -138,9 +150,10 @@ def if_inPoly(polygon, Points):
     
 def nerpoints(ner_kernel_size, cur_x, cur_y, labels, bin_id, rect, is_pos=True):
     # cur_x, cur_y的ner_kernel_size邻域是否均满足在mask上且某个ann-box内
+    h, w = labels.shape[:2]
     for i in range(ner_kernel_size):
         for j in range(ner_kernel_size):
-            ner_x, ner_y = cur_x+i, cur_y+j 
+            ner_x, ner_y = min(cur_x+i, h-1), min(cur_y+j, w-1)
             if is_pos:
                 if labels[ner_x, ner_y] == bin_id:  # ner也在cur_mask上
                     if not if_inPoly(rect, (ner_x, ner_y)):   # 也在此box-ann内
@@ -185,7 +198,7 @@ def segformer_pos_neg_points_in_box(segformer_mask, segformer2haitian, box_list,
                     for _ in range(point_num):  # 筛选neg点
                         for box_ in box_list:
                             rect = [(box_[0],box_[1]), (box_[2],box_[1]), (box_[2],box_[3]), (box_[0],box_[3])]
-                            cur_x, cur_y = random.randint(int(box_[1]), int(box_[3])), random.randint(int(box_[0]), int(box_[2])) # 点在box内
+                            cur_x, cur_y = random.randint(int(box_[1]), int(box_[3])-1), random.randint(int(box_[0]), int(box_[2])-1) # 点在box内
                             if labels[cur_x, cur_y] != bin_id:  # 点不在mask上, so是neg点
                                 # 继续看cur_x, cur_y是否也在box内但不在mask上
                                 if nerpoints(ner_kernel_size, cur_x, cur_y, labels, bin_id, rect, is_pos=False):
@@ -196,28 +209,6 @@ def segformer_pos_neg_points_in_box(segformer_mask, segformer2haitian, box_list,
 
     return points, pointslabels
 
-
-def segformer2boxsprompt(segformer_mask, segformer2haitian, mask_area_thres=None):
-    # Segformet inference一遍待标注数据, mask结果找连通域然后给box
-    box_list = []
-    box_label = []
-    if np.sum(segformer_mask) == 0:
-        return np.array(box_list), box_label
-    need_labinds = [int(a) for a in segformer2haitian]   
-    for need_ind in need_labinds:
-        haitian_lab = segformer2haitian[str(need_ind)]
-        if np.sum(segformer_mask==need_ind) > 0:
-            tmp = np.zeros_like(segformer_mask).astype(np.uint8)
-            tmp[segformer_mask==need_ind] = 1
-            num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(tmp, connectivity=8)
-            for bin_id in range(1, num_labels):
-                x,y,h,w,s = stats[bin_id][:5]
-                if s > mask_area_thres:   
-                    box_list.append([x,y,x+h,y+w])
-                    box_label.append(haitian_lab) 
-    box_arry = np.array(box_list)
-
-    return box_arry, box_label
 
 
 if __name__ == '__main__':

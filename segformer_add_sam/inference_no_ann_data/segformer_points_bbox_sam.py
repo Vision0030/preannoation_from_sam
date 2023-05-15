@@ -1,9 +1,7 @@
 # coding=utf-8
 '''
-segformer出prompt, box or points
-segformer-points; segformer-box 2种形式prompt
-persam的涨点密码, 也是拿sam出的初步mask找bbox,再喂给sam第二次得到seg结果的~
-
+segformer出mask然后找bbox, pos_neg_points 给sam~ 
+可以再手动refinement一次, 但不一定比segformer_points_bbox更好~ 
 
 '''
 import os
@@ -14,9 +12,9 @@ import numpy as np
 import cv2 
 from read_xml import getimages
 from segment_anything import sam_model_registry
-from noann_sam_model import box_only_prompt, points_only_prompt 
+from noann_sam_model import points_box_prompt
 from bk_cvat_upload_ann.samres2citycapse import generate_gtFine, check_instance_id
-from segformer_points_prompt import get_segformer_mask, segformer2pointsprompt, segformer2boxsprompt
+from segformer_points_prompt import get_segformer_mask, segformer_points_bbox 
 
 
 def vis_label_map(label_map, col_map):
@@ -34,15 +32,20 @@ def vis_label_map(label_map, col_map):
 def run_prompt_sam(img_name, sam, image):
     res_label_map = np.zeros_like(image[:,:,0]).astype(np.uint8)
     segformer_mask = get_segformer_mask(img_name, args.segformer_checkpoint, args.segformer_config, args.device_segformer) 
-    if args.prompt_format == 'segformer_points':
-        points, point_labels = segformer2pointsprompt(segformer_mask, args.segformer2haitian, point_num=args.point_num, mask_area_thres=args.mask_area_thres, ner_kernel_size=args.ner_kernel_size)
+    points, pointslabels, box_array, box_label = segformer_points_bbox(segformer_mask, args.segformer2haitian, point_num=args.point_num, mask_area_thres=args.mask_area_thres,ner_kernel_size=args.ner_kernel_size)
+    if args.prompt_format == 'segformer_points' and points.shape[0]:
+        res_label_map = points_box_prompt(sam, image, points, pointslabels, box_array, box_label, args.device_sam, args.inference_size)
+    if args.prompt_format == 'segformer_box' and box_array.shape[0]:
+        res_label_map = points_box_prompt(sam, image, points, pointslabels, box_array, box_label, args.device_sam, args.inference_size, is_bbox=True, is_points=False)
+    if args.prompt_format in ['segformer_points_bbox', 'persam_segformer_points_bbox']:
         if points.shape[0]:
-            res_label_map = points_only_prompt(sam, image, points, point_labels, args.device_sam, args.inference_size)
-    if args.prompt_format == 'segformer_box':
-        box_array, box_label = segformer2boxsprompt(segformer_mask, args.segformer2haitian, mask_area_thres=args.mask_area_thres)
-        if box_array.shape[0]:
-            res_label_map = box_only_prompt(sam, image, box_array, box_label, args.device_sam, args.inference_size)
-            
+            res_label_map = points_box_prompt(sam, image, points, pointslabels, box_array, box_label, args.device_sam, args.inference_size, is_bbox=True)
+            if args.prompt_format == 'persam_segformer_points_bbox':
+                # 手动做refinment, 和persam略有不同~  [不一定比segformer_points_bbox好...]
+                res_label_map[res_label_map!=0] = 1
+                points, pointslabels, box_array, box_label  = segformer_points_bbox(res_label_map, args.segformer2haitian, point_num=args.point_num, mask_area_thres=args.mask_area_thres,ner_kernel_size=args.ner_kernel_size)
+                if points.shape[0]:
+                    res_label_map = points_box_prompt(sam, image, points, pointslabels, box_array, box_label, args.device_sam, args.inference_size, is_bbox=True)
     return res_label_map
 
 
@@ -53,21 +56,21 @@ if __name__ == "__main__":
     parser.add_argument('--sam_checkpoint', type=str, default='./sam_vit_h_4b8939.pth')
     parser.add_argument('--segformer_config', type=str, default='./segformer_config.py')
     parser.add_argument('--segformer_checkpoint', type=str, default='/home/jia.chen/worshop/big_model/SegFormer/work_dirs/iter_160000.pth')
-    parser.add_argument('--device_sam', type=str, default='cuda:3')
-    parser.add_argument('--device_segformer', type=str, default='cuda:1')  # segformer+sam一起可能显存不够,so分开run
+    parser.add_argument('--device_sam', type=str, default='cuda:1')
+    parser.add_argument('--device_segformer', type=str, default='cuda:4')  # segformer+sam一起可能显存不够,so分开run
     parser.add_argument('--inference_size', type=int, default=600)
-    parser.add_argument('--prompt_format', type=str, default='segformer_points')  # 'segformer_points', 'segformer_box'
+    parser.add_argument('--prompt_format', type=str, default='persam_segformer_points_bbox')  # 'segformer_points', 'segformer_box', 'segformer_points_bbox', 'persam_segformer_points_bbox'
     parser.add_argument('--ner_kernel_size', type=int, default=5)  # 邻域范围内, neg,pos点均要满足一致
     parser.add_argument('--mask_area_thres', type=int, default=30)  # 小于mask_area_thres面积的滤掉
     parser.add_argument('--point_num', type=int, default=2)  # 每个instance出promp point: pos, neg各point_num个
-    parser.add_argument('--data_dir', type=str, default='/mnt/data/jiachen/pre_ann_data/2023-05-12')
-    parser.add_argument('--out_dir', type=str, default='/mnt/data/jiachen/pre_ann_data/2023-05-12_out')
-    parser.add_argument('--vis_dir', type=str, default='/mnt/data/jiachen/pre_ann_data/2023-05-12_vis')
-    parser.add_argument('--segformer2haitian', type=dict, default= {'1':1,'2':2,'3':3,'4':4,'5':5})  # segformer的类别和要标注数据类别间配对
+    parser.add_argument('--data_dir', type=str, default='/mnt/data/jiachen/pre_ann_data/2023-5-12')
+    parser.add_argument('--out_dir', type=str, default='/mnt/data/jiachen/pre_ann_data/2023-5-12_bbox_points_persam')
+    parser.add_argument('--vis_dir', type=str, default='/mnt/data/jiachen/pre_ann_data/2023-5-12_bbox_points_persam/vis')
+    parser.add_argument('--segformer2haitian', type=dict, default= {'1':1,'2':2,'3':3,'4':4,'5':5})   
     args = parser.parse_args()
-
     jiachen_cls_index = {'Rug': 1, 'Cable': 2, 'Tissue': 3, 'Poop': 4, 'Liquid': 5}
     col_map = [[0, 255, 0], [0, 255, 255], [200, 100, 200], [0, 0, 255], [255,0,0]] 
+
     # 1. init sam
     sam = sam_model_registry[args.model_type](checkpoint=args.sam_checkpoint)
     sam.to(device=args.device_sam)

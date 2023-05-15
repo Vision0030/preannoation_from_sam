@@ -21,7 +21,7 @@ from read_xml import getimages
 from segment_anything import sam_model_registry
 from sam_model import box_only_prompt, points_only_prompt, points_box_prompt 
 from bk_cvat_upload_ann.samres2citycapse import generate_gtFine, check_instance_id
-from segformer_points_prompt import get_segformer_mask, segformer2pointsprompt, segformer2boxsprompt, segformer_pos_neg_points_in_box
+from segformer_points_prompt import get_segformer_mask, segformer_pos_neg_points_in_box
 
 
 def give_cls_index(res_label_map, jiachen_cls_index, labels, box_list):
