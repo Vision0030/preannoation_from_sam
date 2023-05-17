@@ -5,11 +5,16 @@
 segformer出predict mask 
 ann-box; segformer-points; ann-box+segformer-points; segformer-box 4种形式prompt
 结论: 
-    ann-box较好,
-    ann-box+segformer-points一些类别上优于ann-box 
-    segformer-box形式比segformer-points形式好!
-    segformer出的mask怎么点中好的point作为prompt需要好好设计!
-    [找最大面积那个连通域,且考虑邻域点pos,neg属性的一致性~!]
+    1. ann-box表现比较稳定
+    2. ann-box+segformer-points, 优化效果不稳定, 非常依赖point命中目标的质量 
+    3. 毫无ann冷启动数据标注的话, 
+        1. segformer-box形式比segformer-points形式好
+    4. segformer出的mask怎么点中好的point?
+        1. 目前的做法: 找area最大的那个连通域, 考虑pos,neg邻域内属性一致
+            1. pos的邻域可小些, 因为已经是在area最大的连通域上找point了, 不至于random得太离谱到物体的边界上
+            2. neg的领域设置大一些, 保证这个点大概率是准的(对于有缠绕的线, 这个neg点就很难找)
+            3. 同时搭配一个10~20次的find_point_times: 找了find_point_times次还是没找到合适的pos,neg的话, 就不给point prompt了~  至少保底出一个ann-box的sam标注结果~ 
+
 ![1](1.PNG)  
 ![2](2.PNG)
 ![3](3.PNG)

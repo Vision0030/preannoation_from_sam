@@ -36,26 +36,30 @@ def getdirs(root_dir):
                 xmls.append(osp.join(root_dir, sub_dir))
 
 
-def rewrite_img_2_citycapse(xml, img_save_name):
+def rewrite_img_2_citycapse(xml, img_save_name, crop_h_size):
     image = cv2.imread(xml[:-3]+'bmp', cv2.IMREAD_UNCHANGED)
+    h,w = image[:2]
+    if crop_h_size:
+        image = image[h-crop_h_size:, :]
     cv2.imwrite(img_save_name, image)
     
     return img_save_name
 
 def pre_data_process(xml_path, image_save_name):
-    _, xml_ann = getimages(xml_path)
+    _, xml_ann, h, w = getimages(xml_path)   # h,w: 1224 1632
+    height_gap = h - args.crop_h_size
     box_list = []
     labels = []
     for ann in xml_ann:
         cls_name = ann[4]
         if cls_name in clses:
             labels.append(cls_name)
-            xml_box = ann[:4]
-            box_list.append(xml_box)
-            # image rename成citycapse格式且保存为jpg
-            if not osp.exists(image_save_name):
-                rewrite_img_2_citycapse(xml_path, image_save_name)
-                
+            xml_box = [ann[0], max(0, ann[1]-height_gap), ann[2], max(ann[3]-height_gap, 0)]
+            if xml_box[-1] > 0:
+                box_list.append(xml_box)
+                # image rename成citycapse格式且保存为jpg
+                if not osp.exists(image_save_name):
+                    rewrite_img_2_citycapse(xml_path, image_save_name, args.crop_h_size)
     return labels, box_list 
 
 
@@ -117,6 +121,7 @@ if __name__ == "__main__":
     parser.add_argument('--find_times', type=int, default=20)   
     parser.add_argument('--data_dir', type=str, default='/mnt/data/jiachen/pre_ann_data/test')
     parser.add_argument('--out_dir', type=str, default='/mnt/data/jiachen/sam_preann_haitian_annbox_segformerpoints/gtFine/default')
+    parser.add_argument('--crop_h_size', type=int, default=510)   # 大fov的数据, crop掉只要下面550像素 -> 510x1632
     parser.add_argument('--img_save_path', type=str, default='/mnt/data/jiachen/sam_preann_haitian_annbox_segformerpoints/imgsFine/leftImg8bit/default')
     parser.add_argument('--vis_dir', type=str, default='/mnt/data/jiachen/sam_preann_haitian_annbox_segformerpoints/gtFine/vis')
     parser.add_argument('--segformer2haitian', type=dict, default= {'4':2, '2':1})  
