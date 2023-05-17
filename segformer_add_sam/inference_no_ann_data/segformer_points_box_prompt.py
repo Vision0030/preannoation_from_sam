@@ -161,6 +161,7 @@ def segformer_points_bbox(segformer_mask, segformer2haitian, point_num=None, mas
                             if goted_points >= point_num:
                                 break
                     goted_points += 1   # 找了限定次数没找到, 就给你虚假计数吧~ 不继续找了..
+                print('goted_points: ', goted_points)
                 # 筛neg点
                 neg_instance_find_times = 0
                 neg_goted_points = 0
@@ -182,6 +183,7 @@ def segformer_points_bbox(segformer_mask, segformer2haitian, point_num=None, mas
                                 if neg_goted_points >= point_num:
                                     break
                     neg_goted_points += 1
+                    print('neg_goted_points:', neg_goted_points)
     points = np.array(instance_points)
     pointslabels = np.array(instance_point_label)
     box_array = np.array(box_list)
@@ -253,13 +255,16 @@ def segformer_pos_neg_points_in_box(segformer_mask, segformer2haitian, box_list,
                                 instance_points.append([cur_x, cur_y])
                                 instance_point_label.append(haitian_lab) 
                                 # 检查下找到的这个pos点 
-                                # cv2.rectangle(three_segformer_mask, (box_[0],box_[1]),(box_[2], box_[3]), (0,255,0), 2)  
-                                # cv2.circle(three_segformer_mask, (cur_y, cur_x), 10, (255,0,0), 1)
+                                cv2.rectangle(three_segformer_mask, (box_[0],box_[1]),(box_[2], box_[3]), (0,255,0), 2)  
+                                cv2.circle(three_segformer_mask, (cur_y, cur_x), 10, (255,0,0), 1)
                                 # cv2.imwrite('{}.jpg'.format(33), three_segformer_mask)  
                                 goted_point += 1
                                 if goted_point >= point_num:
                                     break
+                        break
+                    break
                     goted_point += 1
+                print(goted_point, 'goted_point')
                 # for neg points:
                 neg_goted_point = 0
                 neg_found_time = 0
@@ -273,13 +278,16 @@ def segformer_pos_neg_points_in_box(segformer_mask, segformer2haitian, box_list,
                                 instance_points.append([cur_x, cur_y])
                                 instance_point_label.append(0) # neg点labelid=0 
                                 neg_goted_point += 1
+                                cv2.rectangle(three_segformer_mask, (box_[0],box_[1]),(box_[2], box_[3]), (0,255,0), 2)  
+                                # # 检查下找到的这个neg点 
+                                cv2.circle(three_segformer_mask, (cur_y, cur_x), 10, (0,0,0), 1)
+                                cv2.imwrite('{}.jpg'.format(33), three_segformer_mask)  
                                 if neg_goted_point >= point_num:
                                     break
-                                # cv2.rectangle(three_segformer_mask, (box_[0],box_[1]),(box_[2], box_[3]), (0,255,0), 2)  
-                                # # 检查下找到的这个neg点 
-                                # cv2.circle(three_segformer_mask, (cur_y, cur_x), 10, (255,0,0), 1)
-                                # cv2.imwrite('{}.jpg'.format(33), three_segformer_mask)  
+                        break
+                    break
                     neg_goted_point += 1
+                print(neg_goted_point, 'neg_goted_point')
     points = np.array(instance_points)
     pointslabels = np.array(instance_point_label)
 

@@ -5,8 +5,10 @@ ann-box; ann-box+segformer-points; 2种形式prompt
 结论: 
     ann-box baseline
     ann-box+segformer-points:
-            1. 更好的pos neg points: segformer_pos_neg_points_in_box
-            2. 是不是points设计错了? 整体弄下来, 只用box不用points更好...??? 
+        调参小技巧:
+            1. 设置find times, 因为找到的点不一定是优质的点, find times= 10 or 20 没找到就不给点了, 至少保证有ann-box级别的分割效果~
+            2. neg点的邻域设置大一些(15 or 20), 尤其针对有缠绕的线, 正好点在缠绕线间的镂空里还挺难的, 那就扩大这个邻域范围呗(反正有find times, 最差就是没找到neg点然后box-ann兜底~)
+            3. pos的邻域设置可随意点, 因为我们找的就是instance面积最大的连通域, 基本不要random太离谱, pos点都不会点到太边界上的！
 
 '''
 import os
@@ -103,21 +105,21 @@ if __name__ == "__main__":
     parser.add_argument('--sam_checkpoint', type=str, default='./sam_vit_h_4b8939.pth')
     parser.add_argument('--segformer_config', type=str, default='./segformer_config.py')
     parser.add_argument('--segformer_checkpoint', type=str, default='/home/jia.chen/worshop/big_model/SegFormer/work_dirs/iter_160000.pth')
-    parser.add_argument('--device_sam', type=str, default='cuda:0')
-    parser.add_argument('--device_segformer', type=str, default='cuda:2')  # segformer+sam一起可能显存不够,so分开run
+    parser.add_argument('--device_sam', type=str, default='cuda:1')
+    parser.add_argument('--device_segformer', type=str, default='cuda:1')  # segformer+sam一起可能显存不够,so分开run
     parser.add_argument('--inference_size', type=int, default=600)
-    parser.add_argument('--multimask_output', type=bool, default=True)
     parser.add_argument('--prompt_format', type=str, default='box_and_segformerpoints')  # 'box-only', 'box_and_segformerpoints' 
-    parser.add_argument('--mask_area_thres', type=int, default=50)  # 小于mask_area_thres面积的滤掉
-    parser.add_argument('--pos_ner_kernel_size', type=int, default=7)  # 5x5winds邻域内都是正样本or负样本
-    parser.add_argument('--neg_ner_kernel_size', type=int, default=11)
+    parser.add_argument('--mask_area_thres', type=int, default=50)     # segformer找的是最大的那个instance, so这个阈值作用不大..
+    parser.add_argument('--pos_ner_kernel_size', type=int, default=5)  # 如: 10x10邻域内都是正样本 
+    parser.add_argument('--neg_ner_kernel_size', type=int, default=20)
     parser.add_argument('--point_num', type=int, default=1)  # 每个instance出point_num个promp point(pos, neg均point_num个)
-    parser.add_argument('--find_times', type=int, default=50)  # 50次寻找pos,neg点的限制次数
+    parser.add_argument('--multimask_output', type=bool, default=True)
+    parser.add_argument('--find_times', type=int, default=20)   
     parser.add_argument('--data_dir', type=str, default='/mnt/data/jiachen/pre_ann_data/test')
-    parser.add_argument('--out_dir', type=str, default='/mnt/data/jiachen/sam_preann_haitian/gtFine/default')
-    parser.add_argument('--img_save_path', type=str, default='/mnt/data/jiachen/sam_preann_haitian/imgsFine/leftImg8bit/default')
-    parser.add_argument('--vis_dir', type=str, default='/mnt/data/jiachen/sam_preann_haitian/gtFine/vis')
-    parser.add_argument('--segformer2haitian', type=dict, default= {'4':2, '2':1})  # segformer的4是便便对应海天的2, segformer的2是cable线, 对应海天的1
+    parser.add_argument('--out_dir', type=str, default='/mnt/data/jiachen/sam_preann_haitian_annbox_segformerpoints/gtFine/default')
+    parser.add_argument('--img_save_path', type=str, default='/mnt/data/jiachen/sam_preann_haitian_annbox_segformerpoints/imgsFine/leftImg8bit/default')
+    parser.add_argument('--vis_dir', type=str, default='/mnt/data/jiachen/sam_preann_haitian_annbox_segformerpoints/gtFine/vis')
+    parser.add_argument('--segformer2haitian', type=dict, default= {'4':2, '2':1})  
     args = parser.parse_args()
 
     # bianbian2  xian1 

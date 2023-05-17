@@ -14,7 +14,7 @@ def prepare_image(rgb_img, transform, device):
     return image.permute(2, 0, 1).contiguous()    
 
 
-def points_box_prompt(sam, image, points, point_labels, box_array, box_label, device, inference_size, is_bbox=False, is_points=True):
+def points_box_prompt(sam, image, points, point_labels, box_array, box_label, device, inference_size, multimask_output_flag, is_bbox=False, is_points=True):
     '''
     base是保证给pos+neg points prompt
     '''
@@ -34,15 +34,22 @@ def points_box_prompt(sam, image, points, point_labels, box_array, box_label, de
         batched_input['boxes'] = resize_transform.apply_boxes_torch(input_boxes, image.shape[:2])
         print('bbox prompt~')
     try:
-        masks = sam([batched_input], multimask_output=False)[0]  # (batch_size==1so取[0]) x (num_predicted_masks_per_input) x H x W
+        masks = sam([batched_input], multimask_output=multimask_output_flag)[0]  
     except:
         return res_label_map
-    mask_labels = masks['masks'].cpu().numpy()  # 1x(num_predicted_masks_per_input) x H x W 第2维是冗余的..
-    mask_labels = np.squeeze(mask_labels, 1)    # (num_predicted_masks_per_input) x H x W
-    labs = mask_labels.shape[0]
+    mask_labels = masks['masks'].cpu().numpy()
+    if not multimask_output_flag:
+        mask_res = np.squeeze(mask_labels, 1) 
+    else:
+        best_mask_inds = [np.argmax(mask_iou) for mask_iou in masks['iou_predictions'].cpu().numpy()]
+        mask_res = []
+        for i, best_id in enumerate(best_mask_inds):
+            mask_ = mask_labels[i][best_id]
+            mask_res.append(mask_)
+    labs = box_array.shape[0]
     for i in range(labs):
-        res_label_map[mask_labels[i]==True] = box_label[i]
+        res_label_map[mask_res[i]==True] = box_label[i]
     
-    return res_label_map
+    return res_label_map 
 
 
