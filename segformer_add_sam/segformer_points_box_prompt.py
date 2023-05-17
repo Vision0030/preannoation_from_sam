@@ -157,23 +157,28 @@ def segformer_points_bbox(segformer_mask, segformer2haitian, point_num=None, mas
                             goted_points += 1
                             # cv2.rectangle(three_segformer_mask, (x,y),(x+h,y+w), (0,255,0), 2)  
                             # cv2.circle(three_segformer_mask, (cur_y, cur_x), 10, (255,0,0), 1)
-                            # cv2.imwrite('{}.jpg'.format(44), three_segformer_mask)  
+                            # cv2.imwrite('{}.jpg'.format(33), three_segformer_mask)  
                             if goted_points >= point_num:
                                 break
                     goted_points += 1   # 找了限定次数没找到, 就给你虚假计数吧~ 不继续找了..
                 # 筛neg点
                 neg_instance_find_times = 0
                 neg_goted_points = 0
+                # cv2.rectangle(three_segformer_mask, (x,y),(x+h,y+w), (0,255,0), 2)  
+                # cv2.imwrite('{}.jpg'.format(44), three_segformer_mask)  
                 while neg_goted_points < point_num:
                     while neg_instance_find_times < find_times:
-                        random_x, random_y = random.randint(y, y+w-1), random.randint(x,x+h-1)
-                        if labels[random_x, random_y]==0: # neg点并继续看邻域是否一致性
+                        cur_x, cur_y = random.randint(y, y+w-1), random.randint(x,x+h-1)
+                        if labels[cur_x, cur_y]==0:  
                             neg_instance_find_times += 1
                             tmp_count = ner_count(cur_x, cur_y, ner_kernel_size, labels, bin_id, is_pos=False)
                             if tmp_count == ner_kernel_size*ner_kernel_size:  
                                 instance_points.append([cur_x, cur_y])
-                                instance_point_label.append(0)  # neg点label=0
+                                instance_point_label.append(0)  
                                 neg_goted_points += 1
+                                # cv2.rectangle(three_segformer_mask, (x,y),(x+h,y+w), (0,255,0), 2)  
+                                # cv2.circle(three_segformer_mask, (cur_y, cur_x), 10, (0,255,0), 1)
+                                # cv2.imwrite('{}.jpg'.format(44), three_segformer_mask)  
                                 if neg_goted_points >= point_num:
                                     break
                     neg_goted_points += 1
