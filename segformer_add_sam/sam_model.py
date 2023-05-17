@@ -21,26 +21,29 @@ def prepare_image(rgb_img, transform, device):
 
 
 # prompt inference sam
-def box_only_prompt(sam, image, box_list, device, inference_size):
+def box_only_prompt(sam, image, box_list, device, inference_size, multimask_output_flag):
     res_label_map = np.zeros_like(image[:,:,0]).astype(np.uint8)
     resize_transform = ResizeLongestSide(inference_size)  # default=sam.image_encoder.img_size=1024
     input_boxes = torch.from_numpy(np.array(box_list)).to(device=device)  # (nums, 4)
     batched_input = [{'image': prepare_image(image, resize_transform, device),'boxes': resize_transform.apply_boxes_torch(input_boxes, image.shape[:2]), 'original_size': image.shape[:2]}]
     try:
         # start = time.time()
-        masks = sam(batched_input, multimask_output=True)[0]
+        masks = sam(batched_input, multimask_output=multimask_output_flag)[0]
         # print(masks['iou_predictions'], masks['low_res_logits'])
         # end = time.time()
         # print('runing time {}'.format(end-start))
     except:
         return res_label_map
     print('box prompt~ ')
-    best_mask_inds = [np.argmax(mask_iou) for mask_iou in masks['iou_predictions'].cpu().numpy()]
     mask_labels = masks['masks'].cpu().numpy()
-    mask_res = []
-    for i, best_id in enumerate(best_mask_inds):
-        mask_ = mask_labels[i][best_id]
-        mask_res.append(mask_)
+    if multimask_output_flag:
+        best_mask_inds = [np.argmax(mask_iou) for mask_iou in masks['iou_predictions'].cpu().numpy()]
+        mask_res = []
+        for i, best_id in enumerate(best_mask_inds):
+            mask_ = mask_labels[i][best_id]
+            mask_res.append(mask_)
+    else:
+        mask_res = np.squeeze(mask_labels, 1)
     first_mask = mask_res[0]
     for mask_lab in mask_res[1:]:
         first_mask = np.logical_or(first_mask, mask_lab)  # true or false = true 
@@ -49,7 +52,7 @@ def box_only_prompt(sam, image, box_list, device, inference_size):
     return res_label_map
 
 
-def points_only_prompt(sam, image, points, point_labels, device, inference_size):
+def points_only_prompt(sam, image, points, point_labels, device, inference_size, multimask_output_flag):
     '''
     points: array
     point_labels: array
@@ -62,16 +65,21 @@ def points_only_prompt(sam, image, points, point_labels, device, inference_size)
     point_labels = point_labels.unsqueeze(0)   
     batched_input = [{'image': prepare_image(image, resize_transform, device), 'point_coords': resize_transform.apply_coords_torch(points, image.shape[:2]), 'point_labels': point_labels, 'original_size': image.shape[:2]}]
     try:
-        masks = sam(batched_input, multimask_output=True)[0]
+        masks = sam(batched_input, multimask_output=multimask_output_flag)[0]
     except:
         return res_label_map
     print('points prompt~')
-    best_mask_inds = [np.argmax(mask_iou) for mask_iou in masks['iou_predictions'].cpu().numpy()]
+    
     mask_labels = masks['masks'].cpu().numpy()
-    mask_res = []
-    for i, best_id in enumerate(best_mask_inds):
-        mask_ = mask_labels[i][best_id]
-        mask_res.append(mask_)
+    if multimask_output_flag:
+        best_mask_inds = [np.argmax(mask_iou) for mask_iou in masks['iou_predictions'].cpu().numpy()]
+        mask_res = []
+        for i, best_id in enumerate(best_mask_inds):
+            mask_ = mask_labels[i][best_id]
+            mask_res.append(mask_)
+    else:
+        mask_res = np.squeeze(mask_labels, 1)
+     
     first_mask = mask_res[0]
     for mask_lab in mask_res[1:]:
         first_mask = np.logical_or(first_mask, mask_lab)  # true or false = true 
@@ -80,7 +88,7 @@ def points_only_prompt(sam, image, points, point_labels, device, inference_size)
     return res_label_map
 
 
-def points_box_prompt(sam, image, points, point_labels, box_list, device, inference_size):
+def points_box_prompt(sam, image, points, point_labels, box_list, device, inference_size, multimask_output_flag):
     res_label_map = np.zeros_like(image[:,:,0]).astype(np.uint8)
     resize_transform = ResizeLongestSide(inference_size)  # default=sam.image_encoder.img_size=1024
     input_boxes = torch.from_numpy(np.array(box_list)).to(device=device)
@@ -91,16 +99,21 @@ def points_box_prompt(sam, image, points, point_labels, box_list, device, infere
     point_labels = point_labels.unsqueeze(0) 
     batched_input = [{'image': prepare_image(image, resize_transform, device), 'boxes': resize_transform.apply_boxes_torch(input_boxes, image.shape[:2]), 'point_coords': resize_transform.apply_coords_torch(points, image.shape[:2]), 'point_labels': point_labels, 'original_size': image.shape[:2]}]
     try:
-        masks = sam(batched_input, multimask_output=True)[0]
+        masks = sam(batched_input, multimask_output=multimask_output_flag)[0]
     except:
         return res_label_map
     print('box+points prompt~')
-    best_mask_inds = [np.argmax(mask_iou) for mask_iou in masks['iou_predictions'].cpu().numpy()]
+    
     mask_labels = masks['masks'].cpu().numpy()
-    mask_res = []
-    for i, best_id in enumerate(best_mask_inds):
-        mask_ = mask_labels[i][best_id]
-        mask_res.append(mask_)
+    if multimask_output_flag:
+        best_mask_inds = [np.argmax(mask_iou) for mask_iou in masks['iou_predictions'].cpu().numpy()]
+        mask_res = []
+        for i, best_id in enumerate(best_mask_inds):
+            mask_ = mask_labels[i][best_id]
+            mask_res.append(mask_)
+    else:
+        mask_res = np.squeeze(mask_labels, 1)
+
     first_mask = mask_res[0]
     for mask_lab in mask_res[1:]:
         first_mask = np.logical_or(first_mask, mask_lab)  # true or false = true 
