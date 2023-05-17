@@ -1,24 +1,28 @@
 # get_get_ann_from_sam
-用segment anything做下游任务数据预标注
-
-
-segformer出predict mask 
-ann-box; segformer-points; ann-box+segformer-points; segformer-box 4种形式prompt
-结论: 
-    1. ann-box表现比较稳定
-    2. ann-box+segformer-points, 优化效果不稳定, 非常依赖point命中目标的质量 
-    3. 毫无ann冷启动数据标注的话, 
-        1. segformer-box形式比segformer-points形式好
-    4. segformer出的mask怎么点中好的point?
-        1. 目前的做法: 找area最大的那个连通域, 考虑pos,neg邻域内属性一致
-            1. pos的邻域可小些, 因为已经是在area最大的连通域上找point了, 不至于random得太离谱到物体的边界上
-            2. neg的领域设置大一些, 保证这个点大概率是准的(对于有缠绕的线, 这个neg点就很难找)
-            3. 同时搭配一个10~20次的find_point_times: 找了find_point_times次还是没找到合适的pos,neg的话, 就不给point prompt了~  至少保底出一个ann-box的sam标注结果~ 
-    5. [训测同步非常重要!!!segformer训练的image-size和待标注数据的size保持一致,效果好了些~]
-        至少尽可能的让segformer出的mask准点吧~!!!
-
-![1](1.PNG)  
-![2](2.PNG)
-![3](3.PNG)
-![4](4.PNG)
-![5](5.PNG) 
+1. segment anything做下游任务数据预标注
+    1. segformer train一个下游任务数据的分割模型, 精度到还不错的水平.
+    2. sam接受的prompt形式: 
+        1. annotation-box; 
+        2. annotation-box+segformer-points; 
+        3. segformer-points; 
+        4. segformer-box
+2. 结论: 
+    1. annotation-box表现比较稳定
+    2. annotation-box+segformer-points, 较之1提升效果不稳定, 非常依赖points的质量, 是否"命中"目标 
+    3. 毫无annotation的冷启动数据标注:
+        1. segformer-box形式比segformer-points形式好. box形式的prompt好于points.  
+           [质量不稳定的一些零星点还是不如把这些点团成一个连通域找bbox呢~]
+           [点给的越多,sam对显存的要求越大,玩不起哦~]
+    4. segformer出的mask怎么点中好的points?
+        1. 目前的做法: 1. 找area最大的那个连通域, 2. 考虑pos,neg邻域内属性一致
+            1. pos的邻域可小些, 因为已经是在area最大的连通域上找pos了, 不至于random得太离谱point到物体的边界上
+            2. neg的领域设置大一些, 保证这个点大概率是准的(对于有缠绕的线, 想要找到线之间的那些小镂空挺难的~)
+            3. 搭配一个10 or 20次的find_point_times参数, 即找了find_point_times次后还没有指定个数的pos,neg点, 那就放弃不给points prompt了~  
+                [至少保底出一个annotation-box的sam标注结果,不让不好的points prompt破坏sam的分割效果~]
+    5. 训测同步非常重要!!! segformer训练的image size和待标注数据的size要保持一致~ 尽可能的让segformer出的mask准些吧~!
+3. 可视化结果:
+    ![1](1.PNG)  
+    ![2](2.PNG)
+    ![3](3.PNG)
+    ![4](4.PNG)
+    ![5](5.PNG) 
