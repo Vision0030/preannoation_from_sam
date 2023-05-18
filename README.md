@@ -21,10 +21,11 @@
                 [至少保底出一个annotation-box的sam标注结果,不让不好的points prompt破坏sam的分割效果~]
     5. 训测同步非常重要!!! segformer训练的image size和待标注数据的size要保持一致~ 尽可能的让segformer出的mask准些吧~!
 3. 更中肯的结论:
-    1. 有box-annotation的数据, 直接给box prompt就不错了, 错的很少. 用segformer辅助出points prompt反而恶化, [优化了蛮久但还是很费劲..点point-prompt就是很费劲!!!]
+    1. 有box-annotation的数据, 直接给box prompt就不错了, 错的很少(我的落地场景,标注效率提升3倍~!). 用segformer辅助出points prompt反而恶化, [优化了蛮久但还是很费劲..点point-prompt就是很费劲!!!]
     2. 没有任何annotation的数据, 就用segformer出mask然后找连通域的bbox给sam做. 
-    3. 打算尝试的新方案: sam直接出分割结果, 用box annotation去框sam后的结果, annotation里也已经有cls信息了~ 
-
+    3. 打算尝试的新方案: 
+        1. 有box-ann的, 可根据box信息把roi扣出来(4个边界留点冗余~), 给到sam出分割结果, 并给上cls信息 
+        2. 没有box-ann的, sam, segformer各inference一遍, 然后个两个结果做配对, segformer有一定的提供cls信息的能力[这个还要细想怎么做]
 4. 可视化结果:
     ![1](1.PNG)  
     ![2](2.PNG)
