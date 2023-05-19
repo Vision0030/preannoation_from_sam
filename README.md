@@ -27,12 +27,12 @@
         1. 有box-ann的, 可根据box信息把roi扣出来(4个边界留点冗余~), 再辅助上annbox-prompt给到sam出分割结果[又快又好,详见cropboxann_2_sam.py]
         并给上cls信息 
         2. 没有box-ann的(即毫无annotation冷启动预标注), sam, segformer各inference一遍, 然后个两个结果做配对, segformer有一定的提供cls信息的能力. 想到的方案: 
-            1. 还是segformer先出一遍mask, 找各连通域(面积大于一定阈值)的中心点,
-            同样sam也过一遍原图得到mask_res, 用segformer的中心点来选择要sam中的哪些seg_bins. 被命中的seg_bin也可给到cls信息. 且充分利用sam的边缘优势~  [连通域的中心怎么get,这里可能得精心设计下,配上可视化会更"靠谱"哈~就想之前找pos,neg点一样..~]
-            2. segformer出mask然后bbox, bbox作为annbox,走cropboxann_2_sam.py pipeline. 
-                [局限: 考验segformer的recall object能力, box可能并不全, sam的边缘好优势没有完全利用起来的感觉.]
-                [不过: sam seg的是everything, so其实对于一个完整的目标, ta可能也是出得很断断续续的...] 
-              [这个晚点code,代码基本可复用,就先不缝合轮子了~~~]
+            1. 还是segformer先出一遍mask_res, 找连通域的质心(也就是cv2.connectedComponentsWithStats的centroids),同样sam也过一遍原图出mask_res, 用segformer的质心去选择sam中的分割块. 被命中分割块作为预标注结果. 
+            ![center](center.PNG) 
+            [找连通域的质量心并不是好的做法, 质心点很可能就没点中object, 如红圈圈中的那个.]
+            还是想把sam的好边缘优势用起来, 但怎么做sam和Segformer之间的compare(or voting), 得好好设计~
+            2. segformer推理一遍待标注数据, 得到mask_res然后找连通域(设置个面积阈值筛掉些零碎的分割块哦~)出bounding box(以下简称bbox), bbox作为annbox prompt, 走crop_annbox_sam.py pipeline. 
+            局限: 考验segformer的recall object能力, bbox的个数, 大小可能都不完全准确~ 在bbox内把sam的好边缘利用起来!  [这个晚点code,代码基本可复用,就先不缝合轮子了~~~]
 4. 可视化结果:
     ![1](1.PNG)  
     ![2](2.PNG)

@@ -38,7 +38,10 @@ def getdirs(root_dir):
 
 def rewrite_img_2_citycapse(xml, img_save_name, crop_h_size):
     image = cv2.imread(xml[:-3]+'bmp', cv2.IMREAD_UNCHANGED)
-    h,w = image[:2]
+    try:
+        h,w = image.shape[:2]
+    except:
+        return ''
     if crop_h_size:
         image = image[h-crop_h_size:, :]
     cv2.imwrite(img_save_name, image)
@@ -50,6 +53,7 @@ def pre_data_process(xml_path, image_save_name):
     height_gap = h - args.crop_h_size
     box_list = []
     labels = []
+    im_name = ''
     for ann in xml_ann:
         cls_name = ann[4]
         if cls_name in clses:
@@ -59,8 +63,8 @@ def pre_data_process(xml_path, image_save_name):
                 box_list.append(xml_box)
                 # image rename成citycapse格式且保存为jpg
                 if not osp.exists(image_save_name):
-                    rewrite_img_2_citycapse(xml_path, image_save_name, args.crop_h_size)
-    return labels, box_list 
+                    im_name = rewrite_img_2_citycapse(xml_path, image_save_name, args.crop_h_size)
+    return labels, box_list, im_name
 
 
 def give_cls_index(res_label_map, jiachen_cls_index, labels, box_list):
@@ -151,8 +155,8 @@ if __name__ == "__main__":
         path_dir = osp.dirname(xml_path)
         image_save_name = osp.join(args.img_save_path, '{}_{}_{}'.format(path_dir.split('/')[-2], path_dir.split('/')[-1], osp.basename(xml_path)[:-4]+'.jpg'))
         basename = osp.basename(image_save_name)
-        labels, box_list = pre_data_process(xml_path, image_save_name)
-        if len(labels) == 0:
+        labels, box_list, im_name = pre_data_process(xml_path, image_save_name)
+        if len(labels) == 0 or not osp.exists(im_name):
             continue 
         image = cv2.imread(image_save_name, cv2.IMREAD_UNCHANGED)  # 直接读取上一步rename好的jpg~
         print('processing {} ~~~'.format(image_save_name))
