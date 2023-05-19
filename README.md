@@ -25,7 +25,6 @@
     2. 没有任何annotation的数据, 就用segformer出mask然后找连通域的bbox给sam做. 
     3. 打算尝试的新方案: 
         1. 有box-ann的, 可根据box信息把roi扣出来(4个边界留点冗余~), 再辅助上annbox-prompt给到sam出分割结果[又快又好,详见cropboxann_2_sam.py]
-        并给上cls信息 
         2. 没有box-ann的(即毫无annotation冷启动预标注), sam, segformer各inference一遍, 然后个两个结果做配对, segformer有一定的提供cls信息的能力. 想到的方案: 
             1. 还是segformer先出一遍mask_res, 找连通域的质心(也就是cv2.connectedComponentsWithStats的centroids),同样sam也过一遍原图出mask_res, 用segformer的质心去选择sam中的分割块. 被命中分割块作为预标注结果. 
             ![center](center.PNG) 
@@ -33,6 +32,10 @@
             还是想把sam的好边缘优势用起来, 但怎么做sam和Segformer之间的compare(or voting), 得好好设计~
             2. segformer推理一遍待标注数据, 得到mask_res然后找连通域(设置个面积阈值筛掉些零碎的分割块哦~)出bounding box(以下简称bbox), bbox作为annbox prompt, 走crop_annbox_sam.py pipeline. 
             局限: 考验segformer的recall object能力, bbox的个数, 大小可能都不完全准确~ 在bbox内把sam的好边缘利用起来!  [这个晚点code,代码基本可复用,就先不缝合轮子了~~~]
+            3. 考虑sam的边缘更好, 所以拿各个sam的mask块去取segformer_mask中的值. 这样就可获取类别信息了. 取segformer_mask内像素个数最多的那个类别作为检出结果的label_value(信任sam没有把不同类别miss到同一个连通域内). 另外要卡一个segformer/sam的阈值(lab_rate), 防止segformer把背景检为目标, 然后在voting配对时候, 把sam检出的背景赋值label_value了~
+            4. sam后面接个分类模型得了.[狗头]
+            ![8](8.PNG) 
+
 4. 可视化结果:
     ![1](1.PNG)  
     ![2](2.PNG)
