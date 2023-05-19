@@ -8,7 +8,6 @@ sam 和 segformer的结合, sam出好的边缘, 找Segformer的结果做voting~
 import os
 import os.path as osp 
 import numpy as np 
-import os.path as osp 
 import argparse
 import cv2 
 import copy 
