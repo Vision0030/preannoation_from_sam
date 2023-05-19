@@ -1,6 +1,7 @@
 # coding=utf-8
 '''
-根据box annotation信息, 把roi crop出来, 上下左右给点冗余, 然后再加上ann-box prompt 给到sam~
+根据box annotation信息, 把roi crop出来, 上下左右给点冗余
+然后再加上ann-box prompt 给到sam~ (因为sam给你seg出everything, 没有box prompt的话, 我们取不出想要的具体object啊~)
 又快又准!, sam要推理的图也小了, 背景的干扰也少了~ 
 
 '''
@@ -112,9 +113,8 @@ if __name__ == "__main__":
         image_save_name = osp.join(args.img_save_path, '{}_{}_{}'.format(path_dir.split('/')[-2], path_dir.split('/')[-1], osp.basename(xml_path)[:-4]+'.jpg'))
         basename = osp.basename(image_save_name)
         labels, box_list = pre_data_process(xml_path, image_save_name)
-        if len(labels) == 0:
+        if len(labels) == 0 or not osp.exists(image_save_name):
             continue 
-        # crop box roi 
         image = cv2.imread(image_save_name, cv2.IMREAD_UNCHANGED)   
         h, w = image.shape[:2]  # y在前x在后
         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
@@ -124,8 +124,9 @@ if __name__ == "__main__":
             label_value = clses[labels[ind]]
             crop_box, box_array, box_size = modifiy_box(box, h, w)
             roi_img = image[crop_box[1]:crop_box[3],crop_box[0]:crop_box[2],:]
-            cv2.imwrite('roi_img.jpg', roi_img)
+            # cv2.imwrite('roi_img.jpg', roi_img)
             roi_res = res_label_map[crop_box[1]:crop_box[3],crop_box[0]:crop_box[2]]
+            # 还是要给box prompt的, 不然sam给你seg出everything, 但我们想要的目标, 取不出具体的啊~~~
             sam_roi_res = box_only_prompt(sam, roi_img, box_array, args.device_sam, box_size, args.multimask_output)
             roi_res[sam_roi_res==255] = label_value
             res_label_map[crop_box[1]:crop_box[3],crop_box[0]:crop_box[2]] = roi_res
