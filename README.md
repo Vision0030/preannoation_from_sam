@@ -34,7 +34,7 @@
             局限: 考验segformer的recall object能力, bbox的个数, 大小可能都不完全准确~ 在bbox内把sam的好边缘利用起来!  [这个晚点code,代码基本可复用,就先不缝合轮子了~~~]
             3. 考虑sam的边缘更好, 所以拿各个sam的mask块去取segformer_mask中的值. 这样就可获取类别信息了. 取segformer_mask内像素个数最多的那个类别作为检出结果的label_value(信任sam没有把不同类别miss到同一个连通域内). 另外要卡一个segformer/sam的阈值(lab_rate), 防止segformer把背景检为目标, 然后在voting配对时候, 把sam检出的背景赋值label_value了~
             4. sam后面接个分类模型得了.[狗头]
-            ![8](8.PNG) 
+            ![8](8.png) 
 
 4. 可视化结果:
     ![1](1.PNG)  
