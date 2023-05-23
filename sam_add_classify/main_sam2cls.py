@@ -1,8 +1,10 @@
 #coding=utf-8 
+# python knn_cls_sam.py && python cls_sam.py && source activate groupvit && python inference_sam_cls.py
+ 
 import os 
 import os.path as osp 
 import numpy as np 
-import cv2 
+import cv2  
 import torch
 from PIL import Image
 import torchvision
@@ -12,9 +14,9 @@ from segment_anything import SamAutomaticMaskGenerator
 
 
 transform = transforms.Compose([
-    transforms.Resize((50, 50)),
+    transforms.Resize((60, 60)),
     transforms.ToTensor(),
-    transforms.Normalize((0.5, 0.5, 0.5), (0.5, 0.5, 0.5))
+    transforms.Normalize((123.675, 116.28, 103.53), (58.395, 57.12, 57.375))
 ])
 
 def img_transform(img_rgb, transform=None):
@@ -51,7 +53,17 @@ def get_sam_roi_imgs():
         for i in range(1, num_labels):
             x,y,h,w,s = stats[i][:5]
             if s >= 2500:
-                roi = image[y:y+w, x:x+h, :]
+                # roi = image[y:y+w, x:x+h, :]
+                
+                roi_label = labels[y:y+w, x:x+h]
+                roi1 = image[y:y+w, x:x+h,0]
+                roi2 = image[y:y+w, x:x+h,1]
+                roi3 = image[y:y+w, x:x+h,2]
+                roi1[roi_label!=i] = 0
+                roi2[roi_label!=i] = 0
+                roi3[roi_label!=i] = 0  # 屏蔽box内非前景的干扰~
+                roi = cv2.merge([roi1, roi2, roi3])
+                
                 img_tensor = img_transform(Image.fromarray(roi), transform)
                 img_tensor.unsqueeze_(0)  
                 img_tensor = img_tensor.to(device)  

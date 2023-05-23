@@ -28,7 +28,13 @@ for img_path in img_paths:
             num_labels, labels, stats, centroids = cv2.connectedComponentsWithStats(tmp, connectivity=8)
             for i in range(1, num_labels):
                 x,y,h,w,s = stats[i][:5]
-                if s >= 2500:  # 连通域的面积阈值 
-                    roi = image[y:y+w, x:x+h, :]
-                    cv2.imwrite(osp.join(save_dir, '{}_{}.jpg'.format(basename[:-4], i)), roi)
+                if s >= 2500:  # 连通域的面积阈值
+                    roi_label = labels[y:y+w, x:x+h]
+                    roi1 = image[y:y+w, x:x+h,0]
+                    roi2 = image[y:y+w, x:x+h,1]
+                    roi3 = image[y:y+w, x:x+h,2]
+                    roi1[roi_label!=i] = 0  # 屏蔽box内背景干扰. 
+                    roi2[roi_label!=i] = 0
+                    roi3[roi_label!=i] = 0
+                    cv2.imwrite(osp.join(save_dir, '{}_{}.jpg'.format(basename[:-4], i)), cv2.merge([roi1, roi2, roi3]))
                     cls_areas[lab_ind].append(s) 

@@ -43,7 +43,7 @@ if __name__ == "__main__":
     parser.add_argument('--model_type', type=str, default='default')
     parser.add_argument('--sam_checkpoint', type=str, default='./sam_vit_h_4b8939.pth')
     parser.add_argument('--device_sam', type=str, default='cuda:4')
-    parser.add_argument('--sam_segformer_voing_thre', type=float, default=0.7)
+    parser.add_argument('--sam_segformer_voing_thre', type=float, default=0.01)  # or 50.0 
     parser.add_argument('--mask_area_thres', type=int, default=50) 
     parser.add_argument('--sam_mask_savedir', type=str, default='/home/jia.chen/worshop/big_model/SAM/sam_mask_dir')
     parser.add_argument('--data_pkl', type=str, default='/mnt/DATABASE/dvc_repos/small_fov_dataset/out_source/small_fov/倍赛/small_fov_file_info.pkl')
@@ -86,15 +86,19 @@ if __name__ == "__main__":
             if len(labs) == 1:  # [0]
                 continue 
             # [0, lab1, lab2, ...]
+
+            # voting1:  
             all_areas = len(np.where(mask_map==True)[0])  # sam这块bin的总像素个数 
             lab_rate = [0]
-            for lab in labs[1:]:  # 考虑sam的边缘优先级好于segformer, so, tmp里出现多个lab_i的话, 我们按像素点多的那个类去赋值label_value
+            for lab in labs[1:]:   # 考虑sam的边缘优先级好于segformer, so, tmp里出现多个lab_i的话, 我们按像素点多的那个类去赋值label_value
                 cur_lab_count = len(np.where(tmp==lab)[0])
-                cur_lab_count /= float(all_areas)
-                lab_rate.append(cur_lab_count)
+                if args.sam_segformer_voing_thre <= 1:  # 是segformer/sam的比例
+                    cur_lab_count /= float(all_areas)
+                lab_rate.append(cur_lab_count) 
             max_rate = max(lab_rate)
-            if max_rate > args.sam_segformer_voing_thre:  # 需要卡个阈值, 避免segformer过检导致image内到处都是object
+            if max_rate > args.sam_segformer_voing_thre:  # 卡个阈值, 避免segformer过检导致image内到处都是object. 
                 sam_add_segformer[mask_map==True] = labs[lab_rate.index(max_rate)]
+
         # vis ~ 
         color_res = vis_label_map(sam_add_segformer, col_map)
         labeluint8, instanceuint16, color_map = generate_gtFine(mask_area_thres=args.mask_area_thres, sam_label_res=sam_add_segformer, sam_color_map=color_res)
