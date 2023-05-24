@@ -9,6 +9,8 @@ segformer_res: ![3](3.JPG)
 segformer+sam voting res:![2](2.JPG)
 
 so, 需要调下参数:![4](4.PNG)
+看看sam demo的过程: points_per_batch参数还蛮重要的, 大一些比较好吧. 命中object的几率会高些.
+![d2](d2.PNG) ![d1](d1.PNG)
 新的segformer+sam voting res:![1](1.JPG)
 [当然放宽阈值带来了一些过检.]
 可视化sam检出的快发现, 尾部的线有了:![5](5.PNG)
