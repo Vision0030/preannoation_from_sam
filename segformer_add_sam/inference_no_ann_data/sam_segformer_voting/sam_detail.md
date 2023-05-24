@@ -11,9 +11,9 @@ segformer+sam voting res:![2](2.JPG)
 so, 需要调下参数:![4](4.PNG)
 新的segformer+sam voting res:![1](1.JPG)
 [当然放宽阈值带来了一些过检.]
+可视化sam检出的快发现, 尾部的线有了:![5](5.PNG)
 
-更细节一点的, 可视化sam检出的快发现, 尾部的线有了:![5](5.PNG)
-
+sam的image input size暂时没有发现很明显的区别..
 
 
 
